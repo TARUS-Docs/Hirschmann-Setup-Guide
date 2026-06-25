@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hirschmann Bat-867 AP Setup</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['ui-monospace', 'SFMono-Regular', 'monospace'] },
+                    colors: {
+                        primary: { 50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047', 400: '#facc15', 500: '#FFCB05', 600: '#00274C', 700: '#001f3d', 800: '#00182f', 900: '#000f1f' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .val { @apply bg-primary-50 text-primary-900 border-2 border-primary-200 font-black px-2 py-0.5 rounded-md shadow-sm mx-1 text-[13px] tracking-wide inline-block; }
+        .ui { @apply font-bold text-slate-700; }
+        kbd { @apply bg-white border border-slate-300 text-slate-800 rounded-md px-2 py-0.5 text-xs font-sans font-bold shadow-[0_2px_0_rgba(203,213,225,1)] mx-1; }
+        .badge { @apply inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded border border-primary-300 bg-primary-100 text-primary-900 shadow-sm mb-4; }
+        .nav-link.bg-primary-600 { border-left: 4px solid #FFCB05; }
+        .bg-primary-600.text-white.p-4.flex.items-center { border-bottom: 3px solid #FFCB05; }
+        .bg-primary-600.text-white.p-4.flex.items-center > span.text-3xl { color: #FFCB05 !important; opacity: 1 !important; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .sidebar-scroll::-webkit-scrollbar { width: 6px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        /* Layout Handling */
+        .tab-view { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Edit Mode Styles */
+        .step-card { position: relative; } 
+        body:not(.edit-mode) .injected-tool { display: none !important; }
+        body.edit-mode .step-card { border: 2px solid transparent; transition: all 0.2s; }
+        body.edit-mode .step-card:hover { box-shadow: 0 0 0 2px #fde047; }
+        body.edit-mode .step-card.is-editing { outline: 2px dashed #10b981; outline-offset: 4px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); z-index: 10; }
+        [contenteditable="true"] { outline: none; border-radius: 4px; min-height: 1.5em; transition: all 0.2s; }
+        .editable-body[contenteditable="true"] { background-color: #f8fafc; box-shadow: inset 0 0 0 1px #cbd5e1; padding: 1rem; }
+        .editable-title[contenteditable="true"], .editable-num[contenteditable="true"] { background-color: rgba(255,255,255,0.15); padding: 0 0.5rem; }
+        .field-guide-cb { appearance: none; background-color: #fff; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #94a3b8; border-radius: 0.15em; display: grid; place-content: center; }
+        .field-guide-cb::before { content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em #FFCB05; background-color: #FFCB05; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+        .field-guide-cb:checked::before { transform: scale(1); }
+        .step-progress-cb { appearance: none; background-color: #ffffff; border: 1.5px solid #cbd5e1; }
+        .step-progress-cb:hover { border-color: #94a3b8; }
+        .step-progress-cb:checked { background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); background-color: #10b981; border-color: #10b981; }
+        .activity-cell ul { list-style-type: disc !important; padding-left: 1.25rem !important; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .activity-cell ul li { margin-bottom: 0.35rem; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased flex h-screen overflow-hidden relative">
+
+    <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+    <aside id="sidebar" class="w-72 bg-slate-900 text-white flex-shrink-0 h-full flex flex-col shadow-xl z-50 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out">
+        <div class="p-6 bg-slate-950 border-b border-slate-800 flex justify-between items-start">
+            <div class="w-full pr-2">
+                <h1 class="text-xl font-black tracking-tight text-white leading-tight">Hirschmann Bat-867 AP</h1>
+                <p class="text-xs text-slate-400 mt-1 font-medium">Tarus Service Guide</p>
+                <div class="mt-4 bg-slate-800 border-l-4 border-l-primary-500 border-y border-r border-slate-700 rounded-r-lg p-3 shadow-md w-full">
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-400 uppercase tracking-widest text-[10px] mb-1">Last Updated</span>
+                        <span id="doc-date" class="text-white font-mono font-bold text-sm">Jun 25, 2026</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-1 -mt-1 -mr-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto sidebar-scroll py-4 px-3 space-y-1" id="nav-menu">
+            <!-- Main Scrollable Guide Sections -->
+            <button onclick="scrollToSection('sec-intro')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-white bg-primary-600 shadow-md transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Intro & Downloads
+            </button>
+            <button onclick="scrollToSection('sec-hardware')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Hardware Needed
+            </button>
+            <button onclick="scrollToSection('sec-resetting')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Resetting
+            </button>
+            <button onclick="scrollToSection('sec-initial-setup')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg> Initial Setup
+            </button>
+            <button onclick="scrollToSection('sec-lanconfig')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> LanConfig Program
+            </button>
+            <button onclick="scrollToSection('sec-led-status')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> LED Status Indicators
+            </button>
+            <button onclick="scrollToSection('sec-sidekick')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> Ekahau Sidekick
+            </button>
+            <button onclick="scrollToSection('sec-troubleshooting')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Site Troubleshooting
+            </button>
+
+            <!-- Isolated Tabs -->
+            <div class="my-3 border-t border-slate-700 mx-2"></div>
+            <button onclick="openTab('tab-activity')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left">
+                <svg class="w-5 h-5 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Activity Log
+            </button>
+            <div class="my-3 border-t border-slate-700 mx-2"></div>
+            <button onclick="openTab('tab-tutorial')" class="nav-link w-full flex items-center px-4 py-3 text-sm font-bold rounded-lg text-primary-300 hover:text-white hover:bg-slate-800 transition-all text-left border border-slate-700 bg-slate-950">
+                <svg class="w-5 h-5 mr-3 opacity-100 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Editor Tutorial & Help
+            </button>
+        </nav>
+        
+        <div class="p-4 border-t border-slate-800 space-y-3">
+            <button id="editModeToggle" onclick="toggleGlobalEditMode()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg flex justify-center items-center transition shadow text-sm">Enable Edit Mode</button>
+            <button id="downloadGuideBtn" onclick="downloadGuide()" class="w-full bg-primary-600 hover:bg-primary-500 text-white font-bold py-2 px-4 rounded-lg justify-center items-center transition shadow text-sm hidden">Save Master Guide</button>
+            <button id="exportFieldGuideBtn" onclick="exportFieldGuide()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg justify-center items-center transition shadow text-sm hidden">Export Custom Field Guide</button>
+        </div>
+    </aside>
+
+    <main class="flex-1 h-full overflow-y-auto bg-slate-50 relative scroll-smooth flex flex-col">
+        <div class="md:hidden bg-slate-900 text-white p-4 flex items-center shadow-md sticky top-0 z-30 flex-shrink-0">
+            <button onclick="toggleSidebar()" class="mr-4 text-slate-300 hover:text-white focus:outline-none p-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+            <h1 class="text-lg font-black tracking-tight leading-tight truncate">Hirschmann Bat-867 AP Setup</h1>
+        </div>
+
+        <div class="max-w-4xl w-full mx-auto py-6 px-4 md:py-10 md:px-8 pb-32">
+            
+            <!-- MAIN CONTINUOUS GUIDE WRAPPER -->
+            <div id="view-main-guide" class="tab-view active">
+                <div class="space-y-16">
+                    
+                    <!-- SECTION: INTRO -->
+                    <div id="sec-intro" class="guide-section scroll-mt-24">
+                        <span class="badge">Prerequisites</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Introduction & Downloads</h2>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Read Before Set-Up</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>During development, use the exact set-up instructions outlined in this document.</p>
+                                <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                    <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                    <span class="text-xs text-slate-600 font-medium">Once the machine is fully deployed onsite, we will need to change some of these parameters (specifically channels) to avoid factory interference.</span>
+                                </div>
+                                <img src="images/Picture1.png" alt="Hirschmann Bat-867 Access Points" class="w-full max-w-[450px] object-contain rounded border border-gray-300 shadow-md mt-4">
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Prerequisites & Downloads</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>Belden (Hirschmann) frequently changes their website layout and now hides software downloads behind a mandatory customer login portal. If you are configuring from a blank PC, try the direct links below first.</p>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><a href="https://www.belden.com/products/industrial-networking-cybersecurity/wireless/access-points/bat867-r" target="_blank" class="text-primary-600 font-bold hover:underline">BAT867-R Product Website & Manuals</a></li>
+                                    <li><a href="https://catalog.belden.com/index.cfm?event=pd&p=PF_HiDiscovery" target="_blank" class="text-primary-600 font-bold hover:underline">Hi-Discovery Tool</a></li>
+                                    <li><a href="https://catalog.belden.com/index.cfm?event=pd&p=PF_LANConfig" target="_blank" class="text-primary-600 font-bold hover:underline">LanConfig Software</a></li>
+                                </ul>
+                                <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                    <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                    <span class="text-xs text-slate-600 font-medium">If direct links fail, log into <span class="ui">my.belden.com/s/downloads</span> using our shared service credentials: Username: <span class="val select-all">cmorton.tarus@gmail.com</span> | Password: <span class="val select-all">Passme12!</span>, and use the internal search bar.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: HARDWARE -->
+                    <div id="sec-hardware" class="guide-section scroll-mt-24">
+                        <span class="badge">Preparation</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Hardware Needed for Set-up</h2>
+                        
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Required Equipment</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li>A pair of Bat-867 Wireless AP devices with the exact same firmware installed on them.
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">If the devices are running different firmware versions, several issues will occur while trying to configure them within the LanConfig software.</span>
+                                        </div>
+                                    </li>
+                                    <li>A diagnostic laptop and a standard Cat5e/Cat6 network cable to directly connect to the devices.</li>
+                                    <li>The Machine Name where the pair of APs will be installed. This will be used as the P2P Radio ID. This must be 100% unique for each pair of Access Points being configured (using the TARUS machine name is standard practice).</li>
+                                    <li>Your initial Wi-Fi Channel selection. The 5GHz band is strongly recommended. Channel choice is critical. If this is your first pair of devices, choose a channel and work your way up <span class="val editable-field">149, 153, 157, 161...</span>
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">This channel will likely need to be changed once the machine is installed onsite to avoid overlapping with the customer's factory network.</span>
+                                        </div>
+                                    </li>
+                                    <li>Verify paddle antennas are connected before powering on the devices!</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: RESETTING -->
+                    <div id="sec-resetting" class="guide-section scroll-mt-24">
+                        <span class="badge">System</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Resetting a Device</h2>
+                        
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Factory Reset Procedure</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>If you are working with an AP that was previously configured and need to start fresh, follow these steps to wipe it:</p>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>Locate the small reset pinhole just below the link lights on the face of the AP.</li>
+                                    <li>Using a paperclip or small tool, press and hold the reset button for <span class="ui">20 seconds</span> or until the status lights turn solid red.</li>
+                                    <li>Keep holding the button until the light turns red for a second time.</li>
+                                    <li>Release the button. The unit is now wiped, has no IP address, and no name. Proceed to Initial Setup.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: INITIAL SETUP -->
+                    <div id="sec-initial-setup" class="guide-section scroll-mt-24">
+                        <span class="badge">Network</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Initial Setup</h2>
+                        
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">1</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Network Concept & Rules</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li>Both APs in the pair must be on the same subnet with the same netmask. (Example: <span class="val">10.0.0.xxx / 255.255.255.0</span>).</li>
+                                    <li>The system is configured purely as a point-to-point wireless bridge.</li>
+                                    <li>You must designate one unit as the <span class="ui">Master</span> (Desk) and one unit as the <span class="ui">Slave</span> (Tower).</li>
+                                    <li>To bridge successfully, the devices reference each other using unique P2P Radio IDs. Master: <span class="val editable-field">4001A Desk</span> | Slave: <span class="val editable-field">4001A Tower</span></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">2</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">PC Preparation</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>Open Windows Network Adapters, right-click your Ethernet connection, select Properties, and choose IPv4.</li>
+                                    <li>Set a static IP address for your laptop's physical NIC: IPv4 IP address: <span class="val editable-field">10.0.0.50</span> and Subnet mask: <span class="val editable-field">255.255.255.0</span></li>
+                                    <li>Connect your laptop directly to the first AP with a network cable.</li>
+                                    <li>Open the <span class="ui">Hi-Discovery</span> program from your Windows Start Menu.</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">3</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Assigning the IP in Hi-Discovery</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>In the Hi-Discovery software, click the Scan button. Once your connected AP appears in the list, double-click it. Enter the exact information below based on which unit you are holding:</p>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>Master Unit:</strong> Name = <span class="val editable-field">master</span> | IP Address = <span class="val editable-field">10.0.0.1</span> | Netmask = <span class="val editable-field">255.255.255.0</span></li>
+                                    <li><strong>Slave Unit:</strong> Name = <span class="val editable-field">slave</span> | IP Address = <span class="val editable-field">10.0.0.2</span> | Netmask = <span class="val editable-field">255.255.255.0</span></li>
+                                </ul>
+                                <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                    <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                    <span class="text-xs text-slate-600 font-medium">Click <span class="ui">OK</span> in the dialog box. The software will write this configuration to the AP. You can now close the Hi-Discovery application.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: LANCONFIG -->
+                    <div id="sec-lanconfig" class="guide-section scroll-mt-24">
+                        <span class="badge">Configuration</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">LanConfig Program</h2>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">1</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Find the Device in LanConfig</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>Open the <span class="ui">Hirshmann LanConfig</span> program from your Start Menu.</li>
+                                    <li>If the device is already listed in the main window from a previous setup, verify the IP address matches what you just set in Hi-Discovery (<span class="val">10.0.0.1</span> or <span class="val">10.0.0.2</span>).</li>
+                                    <li>If the main window is empty, click <span class="ui">FILE</span> in the top-left corner and select <span class="ui">Find Devices</span>. Once the scan finds your device, click <span class="ui">Add Selected devices</span> to bring it into the main view.</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">2</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Change the Default Administrator Password</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>Right-click the device in the list and choose <span class="ui">Configure</span>.</li>
+                                    <li>A prompt will appear requesting credentials. Use the factory defaults: Administrator: <span class="val">admin</span>, Password: <span class="val">private</span>. Click <span class="ui">Okay</span>.</li>
+                                    <li>In the new configuration window, look at the folder tree on the left side. Expand the <span class="ui">Management</span> folder.</li>
+                                    <li>Click on <span class="ui">Admin</span>.</li>
+                                    <li>In the main panel, enter a new Main Device Password (e.g. <span class="val editable-field">Passme123</span>) and repeat it in the confirmation box.</li>
+                                    <li>Click <span class="ui">OK</span> at the bottom of the window to save the password change.</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">3</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Run the Basic Settings Wizard</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>Double-click the device in the main window to open the Setup Wizard menu, then select <span class="ui">Basic Settings</span>. Click <span class="ui">Next</span> after completing each of the following screens:</p>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li><strong>Device name screen:</strong> Leave this exactly as it shows (it pulled "master" or "slave" from Hi-Discovery).</li>
+                                    <li><strong>Allow device access:</strong> Ensure this is set to <span class="ui">Local networks</span>.</li>
+                                    <li><strong>DHCP screen:</strong> Ensure DHCP mode is set to <span class="ui">Off</span>.</li>
+                                    <li><strong>Set IP screen:</strong> Verify the IP is correct. Do not enter a gateway or DNS server.</li>
+                                    <li><strong>Time Zone:</strong> Set to <span class="ui">-5 (EST)</span> and set DST to <span class="ui">Automatic – USA</span>. Ensure Time Server is <span class="val">pool.ntp.org</span>.
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">Adjust this based on the physical timezone where the machine will reside.</span>
+                                        </div>
+                                    </li>
+                                    <li><strong>Optional info:</strong> Leave these fields blank.</li>
+                                    <li><strong>Updating:</strong> Select <span class="ui">No automatic updating</span>.</li>
+                                </ol>
+                                <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                    <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                    <span class="text-xs text-slate-600 font-medium">Click <span class="ui">Finish</span>. The configuration will upload, and the wizard select screen will reappear.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">4</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Configure WLAN & Point-to-Point</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>When the wizard menu re-opens, click <span class="ui">Configure WLAN</span>, then select <span class="ui">Step by Step detailed configuration of WLAN</span>.</p>
+                                <img src="images/Picture2.png" alt="Select Configure WLAN" class="w-full max-w-[450px] border rounded shadow-sm mb-4">
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li><strong>Screen 1: Country Selection:</strong> Set the Country to <span class="ui">USA</span>. Click <span class="ui">Next</span>.<br><img src="images/Picture3.png" alt="Country USA" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 2: WLAN Operating Mode:</strong> Set the WLAN operating mode to <span class="ui">Access Point</span>. Click <span class="ui">Next</span>.<br><img src="images/Picture4.png" alt="WLAN Operating Mode" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 3: Frequency Band & Channel:</strong> Select the <span class="ui">5GHz (802.11a/n)</span> band. Choose your specific channel from the dropdown. Recommended Channels: Use <span class="val">40</span>, <span class="val">44</span>, <span class="val">48</span> or <span class="val">165</span>.<br>
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">Rule: The Master and Slave MUST be on the exact same channel to communicate.</span>
+                                        </div>
+                                        <img src="images/Picture5.png" alt="Frequency Band and Channel" class="mt-2 w-full max-w-[400px] border rounded shadow-sm">
+                                    </li>
+                                    <li><strong>Screen 4: Antenna Type:</strong> Select the top radio button for <span class="ui">The provided default respectively internal antennas are used</span>. Click <span class="ui">Next</span>.<br>
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">If a subsequent screen asks for Antenna Gain, leave it at the default of 3.</span>
+                                        </div>
+                                        <img src="images/Picture6.png" alt="Antenna Type" class="mt-2 w-full max-w-[400px] border rounded shadow-sm">
+                                    </li>
+                                    <li><strong>Screen 5: Setup Type:</strong> Select the bottom radio button for <span class="ui">Configure WLAN Point-to-Point remote site</span>. Click <span class="ui">Next</span>.<br><img src="images/Picture7.png" alt="Configure WLAN Point-to-Point" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 6: P2P Network Settings:</strong> Point-to-Point operation mode: Select <span class="ui">Exclusive</span>. P2P Radio ID: Enter the unique name (e.g., <span class="val editable-field">4001A Desk</span>). Channel Selection Scheme: Choose <span class="ui">Master</span> or <span class="ui">Slave</span>. Do not forward...: Ensure this box is Left Unchecked.<br><img src="images/Picture8.png" alt="Point-to-Point operation mode exclusive" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 7: Maximum Distance:</strong> Enter <span class="val">0</span> km. Click <span class="ui">Next</span>.<br><img src="images/Picture9.png" alt="Maximum Distance 0" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 8: Encryption Security:</strong> Select <span class="ui">Use WPA-2 (802.11i) Enhanced Security</span>. Click <span class="ui">Next</span>.<br><img src="images/Picture10.png" alt="Encryption WPA-2" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 9: WPA-2 Passphrase:</strong> Enter the exact same password for both devices. Development default: <span class="val editable-field">Passme123</span>. Click <span class="ui">Next</span>.<br><img src="images/Picture11.png" alt="WPA-2 Password" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 10: Point-to-Point Remote APs:</strong> Ensure the dropdown says exactly <span class="ui">P2P-1-1 is off, MAC: empty</span>. Click <span class="ui">Next</span>.<br><img src="images/Picture12.png" alt="Point-to-Point AP Settings" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li><strong>Screen 11: Target the Remote Device:</strong> Check the box for <span class="ui">Enable this Point-2-Point channel</span>. Select the radio button for <span class="ui">Recognize remote site by: P2P radio ID</span>. P2P radio ID: Type in the exact name of the OTHER device (e.g. <span class="val editable-field">4001A Tower</span>). Click <span class="ui">Next</span>.<br><img src="images/Picture13.png" alt="Final P2P Configuration" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                </ol>
+                                <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                    <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                    <span class="text-xs text-slate-600 font-medium">Click <span class="ui">Finish</span>. Once this process is fully completed on both devices, their physical WLAN status lights should illuminate flashing Green. Repeat Steps 1-4 for the second device in the pair.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">5</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Performance & Stability Fine-Tuning</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>These advanced settings are not available in the wizard and must be changed manually on BOTH devices after initial setup is complete.</p>
+                                <h4 class="font-bold text-slate-800 mt-4 mb-2">Part A: Physical WLAN Settings</h4>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>In LanConfig, right-click the device and select <span class="ui">Configure</span>.</li>
+                                    <li>In the left sidebar tree, expand the <span class="ui">Wireless Lan</span> folder, then click on <span class="ui">General</span>.<br><img src="images/Picture14.png" alt="Wireless Lan General" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li>In the main panel, click the button labeled <span class="ui">Physical WLAN settings</span>.</li>
+                                    <li>A new window opens. Click the <span class="ui">Radio</span> tab at the top.</li>
+                                    <li>Verify your channel sub-band mapping. Depending on the channel chosen, select either Sub-band 1 or Sub-band 2 from the dropdown.
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">For North America, use only these 5GHz Channels: Sub-band 1 (36, 40, 44, 48) or Sub-band 2 (149, 153, 157, 161, 165).</span>
+                                        </div>
+                                    </li>
+                                    <li>Change Max. channel bandwidth to exactly <span class="val">20 MHz</span> and Antenna grouping to exactly <span class="val">Antenna 1</span>.<br><img src="images/Picture15.png" alt="Physical WLAN Radio Settings" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li>Click <span class="ui">OK</span> to close the Physical settings window.</li>
+                                </ol>
+
+                                <h4 class="font-bold text-slate-800 mt-6 mb-2">Part B: Logical WLAN Settings</h4>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>Still on the <em>Wireless Lan > General</em> page, click <span class="ui">Logical WLAN settings</span>.</li>
+                                    <li>Select the very first option: <span class="ui">WLAN interface 1 - Network 1 (On)</span>.<br><img src="images/Picture16.png" alt="Select Logical WLAN Network" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li>On the <span class="ui">Network</span> tab, change <span class="ui">Client Bridge Support</span> to <span class="ui">NO</span>.<br><img src="images/Picture17.png" alt="Client Bridge Support" class="mt-2 w-full max-w-[400px] border rounded shadow-sm"></li>
+                                    <li>Click the <span class="ui">Transmission</span> tab at the top.</li>
+                                    <li>Change the RTS Threshold value to exactly <span class="val">65</span>.</li>
+                                    <li>Click <span class="ui">OK</span> on all open windows to write these final configurations.</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <span class="text-3xl font-black mr-4 opacity-50 editable-num">6</span>
+                                <h3 class="text-lg font-bold editable-title flex-1">Final Validation & Ping Test</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>You have completed the baseline setup. To verify the wireless bridge is passing data, perform this physical ping test:</p>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li>Power on both the Master and Slave Hirschmann units.</li>
+                                    <li>Change your diagnostic laptop's IPv4 address to a completely different subnet than what you just used (e.g. change it to <span class="val">192.168.1.50</span>).</li>
+                                    <li>Plug your laptop's ethernet cable into the Master (Desk) AP.</li>
+                                    <li>Open the Windows Command Prompt (<kbd>cmd</kbd>).</li>
+                                    <li>Attempt to ping the Slave AP by typing: <span class="val">ping 10.0.0.2</span> and hitting Enter.</li>
+                                    <li>If you receive replies, your laptop is successfully sending data through the Master, across the air to the Slave. The bridge is functional.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: LED STATUS -->
+                    <div id="sec-led-status" class="guide-section scroll-mt-24">
+                        <span class="badge">Hardware</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">LED Status Indicators</h2>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Status Lights Diagnostics</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>There are 3 main flashing status lights on the faceplate of the Hirschmann unit. Use these for quick visual diagnostics:</p>
+                                
+                                <h4 class="font-bold text-slate-800 mt-4 mb-2">"P" (Power & Status)</h4>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>Solid Green:</strong> Booted and normal operation.</li>
+                                    <li><strong>Flashing Red:</strong> Hardware error detected. Check diagnostics.</li>
+                                    <li><strong>Flashing Green/Red:</strong> Security warning: The default password 'private' is still active.</li>
+                                </ul>
+
+                                <h4 class="font-bold text-slate-800 mt-4 mb-2">"LS/DA" (Link Data)</h4>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>Off:</strong> No physical ethernet cable detected.</li>
+                                    <li><strong>Solid Green:</strong> Ethernet connected but idle.</li>
+                                    <li><strong>Flashing Yellow:</strong> Active network data traffic is flowing.</li>
+                                </ul>
+
+                                <h4 class="font-bold text-slate-800 mt-4 mb-2">"WLAN" (Radio Link)</h4>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>Off:</strong> Radio is disabled or configuration is incomplete/failed.</li>
+                                    <li><strong>Solid Green:</strong> WLAN module activated and actively broadcasting the bridge.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: SIDEKICK -->
+                    <div id="sec-sidekick" class="guide-section scroll-mt-24">
+                        <span class="badge">Diagnostics</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Using the Ekahau Sidekick 2</h2>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Mapping Customer Network Traffic</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>The Ekahau Sidekick 2 is a professional RF spectrum analysis tool. Follow these steps to locate an unused 5GHz channel for the Hirschmann APs:</p>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li><strong>Connect & Launch:</strong> Power on the Ekahau Sidekick 2 device. Connect it directly to your diagnostic iPad or Laptop using the provided USB-C cable. Launch the Ekahau Analyzer app (Mobile) or Ekahau Pro software (Desktop). Sign in with your Tarus Ekahau credentials if prompted.</li>
+                                    <li><strong>Read the Spectrum:</strong> In the app, navigate to the Spectrum Analysis or Waterfall view. Filter the view to show only the 5GHz band. Observe the color densities: Red/Orange peaks mean a channel is heavily utilized. Deep Blue/Black means the channel is empty and available.</li>
+                                    <li><strong>Walk the Machine Footprint:</strong> Hold the Sidekick device and physically walk around the entire perimeter of where the TARUS machine is installed. Watch the analyzer for a channel (e.g. 149 or 153) that remains completely "quiet" (Blue/Black).</li>
+                                    <li><strong>Select & Document:</strong> Identify the cleanest 20MHz wide channel in the 5GHz spectrum. Write down this channel number to program into the Hirschmann LanConfig software.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: TROUBLESHOOTING -->
+                    <div id="sec-troubleshooting" class="guide-section scroll-mt-24">
+                        <span class="badge">Deployment</span>
+                        <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Site Deployment & Final Tuning</h2>
+
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative">
+                            <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                                <h3 class="text-lg font-bold editable-title flex-1">Mitigating Channel Interference</h3>
+                            </div>
+                            <div class="p-6 text-slate-600 space-y-4 editable-body">
+                                <p>When deploying a machine onsite, the pre-programmed development channel will almost always overlap with the customer's enterprise Wi-Fi. You must execute the following protocol at every installation.</p>
+                                
+                                <h4 class="font-bold text-slate-800 mt-4 mb-2">Quick RF Cheat Sheet</h4>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>Channels 40, 44, 48 (U-NII-1):</strong> Immune to DFS sweeps, ensuring zero sudden communication dropouts. Middle 5GHz channels share space with radar and can shut down instantly.</li>
+                                    <li><strong>Channel 165 (U-NII-3 Emergency Hatch):</strong> The 20MHz "Un-bondable" Island. Corporate IT autotuning systems almost completely ignore it, keeping it a safe fallback zone.</li>
+                                </ul>
+
+                                <h4 class="font-bold text-slate-800 mt-6 mb-2">Deployment Steps</h4>
+                                <ol class="list-decimal pl-5 space-y-2">
+                                    <li><strong>Identify a Clean Channel:</strong> Use the Ekahau Sidekick to map the RF space and document an empty 5GHz channel (prioritizing 40, 44, 48, or 165).</li>
+                                    <li><strong>Update Both Hirschmann Devices:</strong> Right-click device -> Configure -> Wireless Lan -> General -> Physical WLAN settings. On the Radio tab, change the Channel Number dropdown to the clean channel. Click OK to save. Repeat for the 2nd device.</li>
+                                    <li><strong>Mandatory Customer I.T. Coordination:</strong> You MUST contact the customer's internal I.T. department. Request that they explicitly "Exclude" or "Lock Out" your chosen 5GHz channel from their ceiling Access Points in the immediate area.
+                                        <div class="bg-slate-100 border-l-4 border-slate-400 p-3 rounded mt-2 shadow-sm">
+                                            <span class="font-black text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Note</span>
+                                            <span class="text-xs text-slate-600 font-medium">Enterprise networking systems use "Auto-RF" tuning. If I.T. does not lock out your channel, their system will eventually auto-tune itself onto your clean channel, overpowering the Hirschmann radios.</span>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ISOLATED TAB: ACTIVITY LOG -->
+            <div id="tab-activity" class="tab-view">
+                <span class="badge">Records</span>
+                <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Activity & Revision Log</h2>
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 relative">
+                    <div class="bg-primary-600 text-white p-4 flex items-center card-header">
+                        <svg class="w-6 h-6 mr-3 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h3 class="text-lg font-bold flex-1">Document History</h3>
+                        <button onclick="unlockActivityLog()" class="injected-tool text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full shadow border border-white/30 font-bold transition ml-2">Admin Edit</button>
+                    </div>
+                    <div class="p-0 text-slate-600 text-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200"><th class="px-6 py-3 text-xs uppercase font-bold text-slate-500 w-28">Date</th><th class="px-6 py-3 text-xs uppercase font-bold text-slate-500 w-32">Editor</th><th class="px-6 py-3 text-xs uppercase font-bold text-slate-500 w-auto">Changes Made</th></tr>
+                                </thead>
+                                <tbody id="activity-table-body" class="divide-y divide-slate-100">
+                                    <tr class="hover:bg-slate-50 transition-colors align-top">
+                                        <td class="px-6 py-4 font-mono text-xs whitespace-nowrap pt-5">Jun 25, 2026</td><td class="px-6 py-4 font-bold text-primary-700 pt-5">Admin</td>
+                                        <td class="px-6 py-4 activity-cell pt-5"><ul class="space-y-2"><li>Converted original guide into unified Master Template format.</li></ul></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="promptAdminActivity()" class="injected-tool w-full py-4 border-2 border-dashed border-primary-300 text-primary-600 rounded-2xl hover:bg-primary-50 transition font-bold flex justify-center items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Add Activity Entry
+                </button>
+            </div>
+
+            <!-- ISOLATED TAB: TUTORIAL -->
+            <div id="tab-tutorial" class="tab-view">
+                <span class="badge">Help</span>
+                <h2 class="text-3xl font-black text-slate-900 mb-8 tracking-tight">Editor Tutorial & Manual</h2>
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6">
+                    <div class="bg-slate-800 text-white p-4 flex items-center card-header"><h3 class="text-lg font-bold">How to Edit the Master Guide</h3></div>
+                    <div class="p-6 text-slate-600 space-y-4">
+                        <ol class="list-decimal pl-5 space-y-3">
+                            <li><strong>Turn on Edit Mode:</strong> Click the <span class="ui">Enable Edit Mode</span> button in the bottom left corner of the sidebar.</li>
+                            <li><strong>Modify an Existing Step:</strong> Hover over any card, click <span class="ui bg-blue-600 text-white px-2 py-1 rounded shadow">Edit</span> to begin typing. Click <span class="ui bg-green-600 text-white px-2 py-1 rounded shadow">Save</span> when done.</li>
+                            <li><strong>Manage List Items:</strong> Click inside any list step. Use the floating formatting toolbar to <strong>+ Step</strong>, <strong>Move &uarr;/&darr;</strong>, or <strong>Delete</strong> that specific line instantly!</li>
+                            <li><strong>Log Your Activity:</strong> Navigate to the <span class="ui">Activity Log</span> tab, click "Admin Edit" (Password: Passme12).</li>
+                            <li><strong>Save Your Work:</strong> Click the <span class="ui bg-primary-600 text-white px-2 py-1 rounded shadow">Save Master Guide</span> button to download a brand new HTML file.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- UI Overlays -->
+    <div id="progress-banner" class="fixed bottom-0 left-0 right-0 bg-slate-800 text-white p-4 flex flex-col sm:flex-row justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transform translate-y-full transition-transform duration-300 z-40 gap-3 sm:gap-0">
+        <div class="flex items-center ml-2 sm:ml-72 w-full sm:w-auto justify-center sm:justify-start">
+            <svg class="w-6 h-6 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div><h4 class="font-bold text-sm">Progress Tracking Active</h4><p class="text-xs text-slate-300">You have completed <span id="completed-count" class="font-bold text-white">0</span> steps.</p></div>
+        </div>
+        <div class="flex space-x-3 w-full sm:w-auto justify-center sm:justify-end mr-2 sm:mr-8">
+            <button onclick="clearProgress()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold shadow-md transition flex items-center text-sm whitespace-nowrap">Discard</button>
+            <button onclick="saveProgressLocally()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold shadow-md transition flex items-center text-sm whitespace-nowrap">Save Progress</button>
+        </div>
+    </div>
+
+    <div id="format-toolbar" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-full shadow-2xl flex flex-wrap justify-center items-center gap-x-2 gap-y-1 z-50 transition-all duration-300 translate-y-20 opacity-0 hidden w-[95%] sm:w-auto">
+        <span class="text-xs font-bold text-slate-400 mr-2 hidden sm:inline">Format:</span>
+        <button onclick="execCmd('bold')" class="px-2 py-1 hover:bg-slate-700 rounded font-bold" title="Bold">B</button>
+        <button onclick="execCmd('italic')" class="px-2 py-1 hover:bg-slate-700 rounded italic" title="Italic">I</button>
+        <button onclick="execCmd('insertUnorderedList')" class="px-2 py-1 hover:bg-slate-700 rounded text-sm" title="Bullet List">&bull; List</button>
+        <div class="w-px h-4 bg-slate-700 mx-1"></div>
+        <button onclick="wrapTag('val')" class="px-2 py-1 hover:bg-slate-700 rounded text-xs" title="Highlight Value"><span class="val pointer-events-none">Value</span></button>
+        <button onclick="wrapTag('ui')" class="px-2 py-1 hover:bg-slate-700 rounded text-xs" title="Bold UI Element"><span class="ui pointer-events-none text-white">UI Element</span></button>
+        <button onclick="wrapTag('kbd')" class="px-2 py-1 hover:bg-slate-700 rounded text-xs" title="Keyboard Key"><kbd class="pointer-events-none">Key</kbd></button>
+        <div class="w-px h-4 bg-slate-700 mx-1 hidden sm:block"></div>
+        <span class="text-[10px] text-slate-400 mr-1 uppercase tracking-wider font-bold hidden sm:inline">Step:</span>
+        <button onclick="addListItem()" class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs font-bold shadow" title="Add Step">+ Step</button>
+        <button onclick="moveListItem(-1)" class="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs shadow" title="Move Step Up">&uarr;</button>
+        <button onclick="moveListItem(1)" class="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs shadow" title="Move Step Down">&darr;</button>
+        <button onclick="deleteListItem()" class="px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-xs shadow" title="Delete Step">Del</button>
+    </div>
+
+    <!-- REQUIRED JAVASCRIPT -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() { 
+            initEditTools(); 
+            injectStepCheckboxes(); 
+            handleProgressChange(); 
+            document.querySelector('main').addEventListener('scroll', handleScrollSpy);
+            handleScrollSpy(); // Initial call
+        });
+        
+        document.addEventListener('keyup', function(e) { if(e.key === 'Enter' && document.body.classList.contains('edit-mode')) { setTimeout(injectStepCheckboxes, 50); } });
+        document.addEventListener('change', function(e) { if(e.target && e.target.classList.contains('step-progress-cb')) { handleProgressChange(); } });
+        window.addEventListener('beforeunload', function (e) { const hasProgress = document.querySelectorAll('.step-progress-cb:checked').length > 0; if (hasProgress && !window.isSavingProgress) { e.preventDefault(); e.returnValue = ''; } });
+
+        // PASTE INTERCEPTOR: Prevents junk code from being injected when pasting
+        document.addEventListener('paste', function(e) {
+            if (e.target.closest('[contenteditable="true"]')) {
+                e.preventDefault();
+                const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+                document.execCommand('insertText', false, text);
+            }
+        });
+
+        // SCROLL & NAVIGATION LOGIC
+        function scrollToSection(id) { 
+            const mainView = document.getElementById('view-main-guide');
+            if(!mainView.classList.contains('active')) {
+                document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+                mainView.classList.add('active');
+            }
+            
+            const el = document.getElementById(id);
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            if (window.innerWidth < 768) { 
+                document.getElementById('sidebar').classList.add('-translate-x-full'); 
+                document.getElementById('sidebarBackdrop').classList.add('hidden'); 
+            } 
+        }
+
+        function openTab(tabId) { 
+            document.querySelectorAll('.tab-view').forEach(content => content.classList.remove('active')); 
+            document.getElementById(tabId).classList.add('active'); 
+            
+            updateActiveNavLink(tabId);
+            window.currentActiveNav = tabId;
+
+            document.querySelector('main').scrollTop = 0; 
+            if (window.innerWidth < 768) { 
+                const sidebar = document.getElementById('sidebar'); 
+                if (sidebar && !sidebar.classList.contains('-translate-x-full')) { 
+                    sidebar.classList.add('-translate-x-full'); 
+                    document.getElementById('sidebarBackdrop').classList.add('hidden'); 
+                } 
+            } 
+        }
+
+        function handleScrollSpy() {
+            const mainView = document.getElementById('view-main-guide');
+            if(!mainView || !mainView.classList.contains('active')) return;
+            
+            const sections = document.querySelectorAll('.guide-section');
+            let current = '';
+            
+            sections.forEach(sec => {
+                const rect = sec.getBoundingClientRect();
+                // Check if the top of the section is in the top portion of the screen 
+                if (rect.top <= (window.innerHeight * 0.4) && rect.bottom >= (window.innerHeight * 0.1)) {
+                    current = sec.id;
+                }
+            });
+            
+            // Fallback: If we scroll all the way to the bottom
+            const mainNode = document.querySelector('main');
+            if (mainNode.scrollTop + mainNode.clientHeight >= mainNode.scrollHeight - 10) {
+                current = sections[sections.length - 1].id;
+            }
+            
+            if (current && window.currentActiveNav !== current) {
+                window.currentActiveNav = current;
+                updateActiveNavLink(current);
+            }
+        }
+
+        function updateActiveNavLink(activeId) {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('bg-primary-600', 'text-white', 'shadow-md', 'bg-slate-950');
+                link.classList.add('text-slate-400');
+                if(link.innerText.includes("Tutorial")) {
+                    link.classList.remove('text-slate-400');
+                    link.classList.add('text-primary-300', 'bg-slate-950');
+                }
+            });
+
+            const activeBtn = document.querySelector(`button[onclick*="'${activeId}'"]`);
+            if(activeBtn) {
+                if(activeId === 'tab-tutorial') {
+                    activeBtn.classList.replace('text-primary-300', 'text-white');
+                    activeBtn.classList.replace('bg-slate-950', 'bg-primary-600');
+                } else {
+                    activeBtn.classList.remove('text-slate-400');
+                    activeBtn.classList.add('bg-primary-600', 'text-white', 'shadow-md');
+                }
+            }
+        }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebarBackdrop').classList.toggle('hidden'); }
+
+        // PROGRESS & CHECKBOX LOGIC
+        function injectStepCheckboxes() {
+            document.querySelectorAll('.editable-body ol > li, .editable-body ul:not(.no-progress) > li').forEach(li => {
+                if(!li.querySelector('.step-progress-cb') && !li.closest('.no-progress')) {
+                    const cb = document.createElement('input'); 
+                    cb.type = 'checkbox'; 
+                    cb.title = 'Mark step complete'; 
+                    cb.className = 'step-progress-cb w-4 h-4 rounded text-green-500 shadow-sm focus:ring-green-500 cursor-pointer transition-all duration-200 inline-block align-middle ml-2 mr-3 -mt-1 flex-shrink-0';
+                    li.insertBefore(cb, li.firstChild);
+                }
+            });
+        }
+        function handleProgressChange() { const count = document.querySelectorAll('.step-progress-cb:checked').length; document.getElementById('completed-count').innerText = count; const banner = document.getElementById('progress-banner'); if (count > 0) banner.classList.remove('translate-y-full'); else banner.classList.add('translate-y-full'); }
+        function clearProgress() { if(confirm("Discard your progress? All checkmarks will be cleared.")) { document.querySelectorAll('.step-progress-cb').forEach(cb => { cb.checked = false; cb.removeAttribute('checked'); }); window.isSavingProgress = false; handleProgressChange(); } }
+        function saveProgressLocally() { window.isSavingProgress = true; document.querySelectorAll('.step-progress-cb').forEach(cb => { if (cb.checked) cb.setAttribute('checked', 'checked'); else cb.removeAttribute('checked'); }); document.querySelectorAll('input[type="text"]').forEach(input => { input.setAttribute('value', input.value); }); const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML; const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `Progress_Guide_${new Date().toISOString().split('T')[0]}.html`; a.click(); URL.revokeObjectURL(url); setTimeout(() => { window.isSavingProgress = false; }, 2000); document.getElementById('progress-banner').classList.add('translate-y-full'); setTimeout(() => { if(document.querySelectorAll('.step-progress-cb:checked').length > 0) document.getElementById('progress-banner').classList.remove('translate-y-full'); }, 1500); }
+
+        // EDITOR LOGIC
+        function toggleGlobalEditMode() { document.body.classList.toggle('edit-mode'); const isEdit = document.body.classList.contains('edit-mode'); const btn = document.getElementById('editModeToggle'); const dlBtn = document.getElementById('downloadGuideBtn'); const expBtn = document.getElementById('exportFieldGuideBtn'); const toolbar = document.getElementById('format-toolbar'); if (isEdit) { btn.innerHTML = 'Disable Edit Mode'; btn.classList.replace('bg-slate-700', 'bg-red-600'); btn.classList.replace('hover:bg-slate-600', 'hover:bg-red-500'); dlBtn.classList.remove('hidden'); expBtn.classList.remove('hidden'); toolbar.classList.remove('hidden'); document.querySelectorAll('.field-guide-cb').forEach(cb => cb.checked = false); } else { btn.innerHTML = 'Enable Edit Mode'; btn.classList.replace('bg-red-600', 'bg-slate-700'); btn.classList.replace('hover:bg-red-500', 'hover:bg-slate-600'); dlBtn.classList.add('hidden'); expBtn.classList.add('hidden'); const activityTable = document.getElementById('activity-table-body'); if (activityTable && activityTable.classList.contains('is-editing-log')) { activityTable.classList.remove('is-editing-log'); activityTable.querySelectorAll('td[contenteditable]').forEach(td => { td.removeAttribute('contenteditable'); td.classList.remove('bg-white', 'shadow-inner', 'ring-1', 'ring-slate-300', 'rounded-md', 'outline-none'); }); } toolbar.classList.remove('translate-y-0', 'opacity-100'); toolbar.classList.add('translate-y-20', 'opacity-0'); setTimeout(() => toolbar.classList.add('hidden'), 300); document.querySelectorAll('.is-editing').forEach(el => toggleEditCard(el.querySelector('.edit-btn'))); } }
+        function initEditTools() { document.querySelectorAll('.guide-section .step-card, .tab-view .step-card').forEach(card => { card.classList.add('relative'); if(card.querySelector('.edit-tools')) return; let toolsHTML = `<div class="space-x-1 flex"><button onclick="moveCard(this, -1)" class="bg-slate-700 text-white px-2 py-1 rounded text-xs shadow hover:bg-slate-600">&uarr;</button><button onclick="moveCard(this, 1)" class="bg-slate-700 text-white px-2 py-1 rounded text-xs shadow hover:bg-slate-600">&darr;</button><button onclick="toggleEditCard(this)" class="bg-blue-600 text-white px-2 py-1 rounded text-xs shadow edit-btn hover:bg-blue-500">Edit</button><button onclick="deleteCard(this)" class="bg-red-600 text-white px-2 py-1 rounded text-xs shadow hover:bg-red-500">Delete</button></div>`; if (card.querySelector('.editable-title')) toolsHTML = `<label class="flex items-center space-x-1 text-xs text-white bg-slate-800 px-2 py-1 rounded shadow cursor-pointer hover:bg-slate-700 mr-2 border border-slate-600"><input type="checkbox" class="field-guide-cb w-3 h-3 cursor-pointer"><span>Include in Field Guide</span></label>` + toolsHTML; const tools = document.createElement('div'); tools.className = 'edit-tools injected-tool absolute top-3 right-4 z-20 flex items-center'; tools.innerHTML = toolsHTML; card.insertBefore(tools, card.firstChild); if(card.classList.contains('bg-white')) { const ht = card.querySelector('h3'); if(ht) ht.classList.add('editable-title'); const b = card.querySelector('.p-6'); if(b) b.classList.add('editable-body'); const ns = card.querySelector('.opacity-50'); if(ns) ns.classList.add('editable-num'); } else { const ht = card.querySelector('h4'); if(ht) ht.classList.add('editable-title'); const b = card.querySelector('.text-sm'); if(b) b.classList.add('editable-body'); } }); document.querySelectorAll('.guide-section').forEach(sec => { if(sec.querySelector('.add-btns-container')) return; const btnContainer = document.createElement('div'); btnContainer.className = 'injected-tool flex flex-wrap gap-4 mt-6 add-btns-container'; btnContainer.innerHTML = `<button class="flex-1 min-w-[120px] py-3 border-2 border-dashed border-slate-400 text-slate-500 rounded-xl hover:bg-slate-200 hover:text-slate-800 transition font-bold text-xs" onclick="addNewStep(this.closest('.guide-section'))">+ Step Card</button><button class="flex-1 min-w-[120px] py-3 border-2 border-dashed border-primary-300 text-primary-600 rounded-xl hover:bg-primary-50 hover:text-primary-800 transition font-bold text-xs" onclick="addInfoBlock(this.closest('.guide-section'))">+ Info Box</button><button class="flex-1 min-w-[120px] py-3 border-2 border-dashed border-slate-300 text-slate-600 rounded-xl hover:bg-slate-100 hover:text-slate-800 transition font-bold text-xs" onclick="addNoteBlock(this.closest('.guide-section'))">+ Note Box</button><button class="flex-1 min-w-[120px] py-3 border-2 border-dashed border-red-300 text-red-500 rounded-xl hover:bg-red-50 hover:text-red-800 transition font-bold text-xs" onclick="addWarningBlock(this.closest('.guide-section'))">+ Warning Box</button>`; sec.appendChild(btnContainer); }); }
+        function toggleEditCard(btn) { const card = btn.closest('.step-card'); const title = card.querySelector('.editable-title'); const body = card.querySelector('.editable-body'); const num = card.querySelector('.editable-num'); const isEditing = card.classList.toggle('is-editing'); const toolbar = document.getElementById('format-toolbar'); if (isEditing) { btn.innerText = 'Save'; btn.classList.replace('bg-blue-600', 'bg-green-600'); btn.classList.replace('hover:bg-blue-500', 'hover:bg-green-500'); if(title) title.contentEditable = "true"; if(body) body.contentEditable = "true"; if(num) num.contentEditable = "true"; toolbar.classList.remove('translate-y-20', 'opacity-0'); toolbar.classList.add('translate-y-0', 'opacity-100'); } else { btn.innerText = 'Edit'; btn.classList.replace('bg-green-600', 'bg-blue-600'); btn.classList.replace('hover:bg-green-500', 'hover:bg-blue-500'); if(title) title.contentEditable = "false"; if(body) body.contentEditable = "false"; if(num) num.contentEditable = "false"; injectStepCheckboxes(); if(document.querySelectorAll('.is-editing').length === 0 && !document.querySelector('.is-editing-log')) { toolbar.classList.remove('translate-y-0', 'opacity-100'); toolbar.classList.add('translate-y-20', 'opacity-0'); } } }
+        function getSelectedLI() { const sel = window.getSelection(); if(sel.rangeCount > 0) { let node = sel.anchorNode; if(node.nodeType === 3) node = node.parentNode; return node.closest('li'); } return null; }
+        function addListItem() { const li = getSelectedLI(); if(li) { const newLi = document.createElement('li'); newLi.innerHTML = "New step..."; li.parentNode.insertBefore(newLi, li.nextSibling); injectStepCheckboxes(); } else { alert("Click inside an existing list first."); } }
+        function moveListItem(direction) { const li = getSelectedLI(); if(li) { if(direction === -1 && li.previousElementSibling) { li.parentNode.insertBefore(li, li.previousElementSibling); } else if(direction === 1 && li.nextElementSibling) { li.parentNode.insertBefore(li.nextElementSibling, li); } } }
+        function deleteListItem() { const li = getSelectedLI(); if(li && confirm("Delete this step?")) li.remove(); }
+        function moveCard(btn, direction) { const card = btn.closest('.step-card'); if (!card) return; if (direction === -1) { const prev = card.previousElementSibling; if (prev && prev.classList.contains('step-card')) { card.parentNode.insertBefore(card, prev); card.scrollIntoView({behavior: "smooth", block: "center"}); } } else { const next = card.nextElementSibling; if (next && next.classList.contains('step-card')) { card.parentNode.insertBefore(next, card); card.scrollIntoView({behavior: "smooth", block: "center"}); } } }
+        function deleteCard(btn) { if(confirm("Delete this block?")) { btn.closest('.step-card').remove(); if(document.querySelectorAll('.is-editing').length === 0 && !document.querySelector('.is-editing-log')) { document.getElementById('format-toolbar').classList.add('translate-y-20', 'opacity-0'); document.getElementById('format-toolbar').classList.remove('translate-y-0', 'opacity-100'); } } }
+        function addNewStep(container) { const stepHTML = `<div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6 step-card relative"><div class="bg-primary-600 text-white p-4 flex items-center card-header"><span class="text-3xl font-black mr-4 opacity-50 editable-num">#</span><h3 class="text-lg font-bold editable-title flex-1">New Step</h3></div><div class="p-6 text-slate-600 space-y-4 editable-body"><ol class="list-decimal pl-5 space-y-2"><li>Task</li></ol></div></div>`; const tempDiv = document.createElement('div'); tempDiv.innerHTML = stepHTML.trim(); const newCard = tempDiv.firstChild; container.insertBefore(newCard, container.querySelector('.add-btns-container')); initEditTools(); injectStepCheckboxes(); setTimeout(() => { toggleEditCard(newCard.querySelector('.edit-btn')); newCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }
+        function addInfoBlock(container) { const blockHTML = `<div class="bg-primary-50 border border-primary-200 border-l-4 border-l-primary-600 p-5 rounded-lg shadow-sm mb-6 step-card relative"><div class="flex justify-between items-start mb-1"><h4 class="font-bold text-primary-800 flex items-center editable-title"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>Info</h4></div><div class="text-sm text-primary-900 editable-body"><p>Details here...</p></div></div>`; const tempDiv = document.createElement('div'); tempDiv.innerHTML = blockHTML.trim(); const newBlock = tempDiv.firstChild; container.insertBefore(newBlock, container.querySelector('.add-btns-container')); initEditTools(); injectStepCheckboxes(); setTimeout(() => { toggleEditCard(newBlock.querySelector('.edit-btn')); newBlock.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }
+        function addNoteBlock(container) { const blockHTML = `<div class="bg-slate-100 border border-slate-200 border-l-4 border-l-slate-500 p-5 rounded-lg shadow-sm mb-6 step-card relative"><div class="flex justify-between items-start mb-1"><h4 class="font-bold text-slate-800 flex items-center editable-title"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>Note</h4></div><div class="text-sm text-slate-700 editable-body"><p>General note here...</p></div></div>`; const tempDiv = document.createElement('div'); tempDiv.innerHTML = blockHTML.trim(); const newBlock = tempDiv.firstChild; container.insertBefore(newBlock, container.querySelector('.add-btns-container')); initEditTools(); injectStepCheckboxes(); setTimeout(() => { toggleEditCard(newBlock.querySelector('.edit-btn')); newBlock.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }
+        function addWarningBlock(container) { const blockHTML = `<div class="bg-red-50 border border-red-200 border-l-4 border-l-red-600 p-5 rounded-lg shadow-sm mb-6 step-card relative"><div class="flex justify-between items-start mb-1"><h4 class="font-bold text-red-800 flex items-center editable-title"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>Warning</h4></div><div class="text-sm text-red-900 editable-body"><p>Details here...</p></div></div>`; const tempDiv = document.createElement('div'); tempDiv.innerHTML = blockHTML.trim(); const newBlock = tempDiv.firstChild; container.insertBefore(newBlock, container.querySelector('.add-btns-container')); initEditTools(); injectStepCheckboxes(); setTimeout(() => { toggleEditCard(newBlock.querySelector('.edit-btn')); newBlock.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }
+        
+        function unlockActivityLog() { if(prompt("Enter Admin Password:") === "Passme12") { const tbody = document.getElementById('activity-table-body'); tbody.classList.add('is-editing-log'); tbody.querySelectorAll('tr').forEach(tr => { if(tr.children.length >= 3) { tr.children[1].contentEditable = "true"; tr.children[1].classList.add('bg-white', 'shadow-inner', 'ring-1', 'ring-slate-300', 'rounded-md', 'outline-none'); tr.children[2].contentEditable = "true"; tr.children[2].classList.add('bg-white', 'shadow-inner', 'ring-1', 'ring-slate-300', 'rounded-md', 'outline-none'); } }); document.getElementById('format-toolbar').classList.remove('hidden', 'translate-y-20', 'opacity-0'); document.getElementById('format-toolbar').classList.add('translate-y-0', 'opacity-100'); alert("Activity Log unlocked."); } else { alert("Incorrect Password."); } }
+        function promptAdminActivity() { if(prompt("Enter Admin Password to Log Activity:") === "Passme12") { const tbody = document.getElementById('activity-table-body'); tbody.classList.add('is-editing-log'); const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }); const tr = document.createElement('tr'); tr.className = 'hover:bg-slate-50 transition-colors align-top'; tr.innerHTML = `<td class="px-6 py-4 font-mono text-xs whitespace-nowrap pt-5">${date}</td><td class="px-6 py-4 font-bold text-primary-700 bg-white shadow-inner ring-1 ring-slate-300 rounded-md outline-none pt-5" contenteditable="true">Name</td><td class="px-6 py-4 activity-cell bg-white shadow-inner ring-1 ring-slate-300 rounded-md outline-none" contenteditable="true"><ul class="space-y-2"><li>Describe changes...</li></ul></td>`; tbody.insertBefore(tr, tbody.firstChild); document.getElementById('format-toolbar').classList.remove('hidden', 'translate-y-20', 'opacity-0'); document.getElementById('format-toolbar').classList.add('translate-y-0', 'opacity-100'); const dateSpan = document.getElementById('doc-date'); if (dateSpan) dateSpan.innerText = date; } else { alert("Incorrect Password."); } }
+        function execCmd(command) { document.execCommand(command, false, null); }
+        function wrapTag(type) { const selection = window.getSelection(); if (!selection.rangeCount || selection.isCollapsed) { alert("Highlight text first."); return; } const range = selection.getRangeAt(0); let node; if (type === 'val') { node = document.createElement('span'); node.className = 'val'; } else if (type === 'ui') { node = document.createElement('span'); node.className = 'ui'; } else if (type === 'kbd') { node = document.createElement('kbd'); } if (node) { node.appendChild(range.extractContents()); range.insertNode(node); selection.removeAllRanges(); } }
+        
+        function downloadGuide() { 
+            window.isSavingProgress = true; 
+            document.querySelectorAll('.is-editing').forEach(card => toggleEditCard(card.querySelector('.edit-btn'))); 
+            const wasEditMode = document.body.classList.contains('edit-mode'); document.body.classList.remove('edit-mode'); 
+            
+            document.querySelectorAll('.injected-tool').forEach(el => el.remove()); 
+            document.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable')); 
+            document.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+
+            const activityTable = document.getElementById('activity-table-body'); 
+            if (activityTable) { 
+                activityTable.classList.remove('is-editing-log'); 
+                activityTable.querySelectorAll('td[contenteditable]').forEach(td => { td.removeAttribute('contenteditable'); td.classList.remove('bg-white', 'shadow-inner', 'ring-1', 'ring-slate-300', 'rounded-md', 'outline-none'); }); 
+            } 
+            const dateSpan = document.getElementById('doc-date'); 
+            if (activityTable && dateSpan) { 
+                const firstRowDate = activityTable.querySelector('tr td:first-child'); 
+                if (firstRowDate) { dateSpan.innerText = firstRowDate.innerText.trim(); } 
+            } 
+            document.querySelectorAll('.step-progress-cb').forEach(cb => { cb.checked = false; cb.removeAttribute('checked'); }); 
+            document.querySelectorAll('input[type="text"]').forEach(input => { input.setAttribute('value', input.value); }); 
+            
+            document.getElementById('format-toolbar').classList.add('hidden', 'translate-y-20', 'opacity-0'); 
+            document.getElementById('format-toolbar').classList.remove('translate-y-0', 'opacity-100'); 
+            document.getElementById('downloadGuideBtn').classList.add('hidden'); 
+            document.getElementById('exportFieldGuideBtn').classList.add('hidden'); 
+            document.getElementById('progress-banner').classList.add('translate-y-full'); 
+            
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML; 
+            const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"}); 
+            const url = URL.createObjectURL(blob); 
+            const a = document.createElement('a'); a.href = url; 
+            a.download = `Master_Guide_Update_${new Date().toISOString().split('T')[0]}.html`; a.click(); URL.revokeObjectURL(url); 
+            setTimeout(() => { window.isSavingProgress = false; }, 2000); initEditTools(); if(wasEditMode) toggleGlobalEditMode(); 
+        }
+
+        function exportFieldGuide() { 
+            window.isSavingProgress = true; 
+            document.querySelectorAll('.is-editing').forEach(card => toggleEditCard(card.querySelector('.edit-btn'))); 
+            let cardsSelected = 0; 
+            document.querySelectorAll('.step-card').forEach(card => { 
+                const cb = card.querySelector('.field-guide-cb'); 
+                if(cb && cb.checked) { card.setAttribute('data-export', 'true'); cardsSelected++; } else { card.removeAttribute('data-export'); } 
+            }); 
+            if(cardsSelected === 0) { alert("Select at least one step."); return; } 
+            
+            const cloneNode = document.documentElement.cloneNode(true); 
+            cloneNode.querySelectorAll('.step-card').forEach(card => { if(card.getAttribute('data-export') !== 'true') { card.remove(); } else { card.removeAttribute('data-export'); } }); 
+            
+            cloneNode.querySelectorAll('.guide-section').forEach(sec => { 
+                if(sec.querySelectorAll('.step-card').length === 0) { 
+                    sec.remove(); 
+                    const navBtn = cloneNode.querySelector(`button[onclick*="'${sec.id}'"]`); 
+                    if(navBtn) navBtn.remove(); 
+                } 
+            }); 
+            cloneNode.querySelectorAll('.tab-view').forEach(tab => { 
+                const id = tab.id; 
+                if(id === 'tab-tutorial' || id === 'tab-activity') { 
+                    tab.remove(); 
+                    const navBtn = cloneNode.querySelector(`button[onclick*="'${id}'"]`); 
+                    if(navBtn) navBtn.remove(); 
+                } 
+            }); 
+            
+            const remainingNavs = cloneNode.querySelectorAll('.nav-link'); 
+            if(remainingNavs.length > 0) { 
+                remainingNavs.forEach(n => { n.classList.remove('bg-primary-600', 'text-white', 'shadow-md', 'bg-slate-950'); n.classList.add('text-slate-400'); }); 
+                remainingNavs[0].classList.remove('text-slate-400'); remainingNavs[0].classList.add('bg-primary-600', 'text-white', 'shadow-md'); 
+            } 
+            
+            cloneNode.querySelectorAll('.injected-tool, #format-toolbar, #editModeToggle, #downloadGuideBtn, #exportFieldGuideBtn').forEach(el => el.remove()); 
+            cloneNode.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable')); 
+            cloneNode.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+            cloneNode.querySelector('body').classList.remove('edit-mode'); 
+            cloneNode.querySelectorAll('.step-progress-cb').forEach(cb => { cb.checked = false; cb.removeAttribute('checked'); }); 
+            
+            const progressBanner = cloneNode.querySelector('#progress-banner'); 
+            if (progressBanner) progressBanner.classList.add('translate-y-full'); 
+            
+            const title = cloneNode.querySelector('title'); if(title) title.innerText = "Custom Field Guide - TarusNC"; 
+            const mainHeader = cloneNode.querySelector('aside h1'); if(mainHeader) mainHeader.innerHTML = 'Field <span class="text-primary-500">Guide</span>'; 
+            const subHeader = cloneNode.querySelector('aside p'); if(subHeader) subHeader.innerHTML = "Custom Step Extraction<br>TarusNC"; 
+            
+            const htmlContent = "<!DOCTYPE html>\n" + cloneNode.outerHTML; 
+            const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"}); 
+            const url = URL.createObjectURL(blob); 
+            const a = document.createElement('a'); a.href = url; a.download = `Field_Guide_${new Date().toISOString().split('T')[0]}.html`; a.click(); URL.revokeObjectURL(url); 
+            document.querySelectorAll('.field-guide-cb').forEach(cb => cb.checked = false); 
+            setTimeout(() => { window.isSavingProgress = false; }, 2000); 
+        }
+
+    </script>
+</body>
+</html>
